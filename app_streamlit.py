@@ -177,35 +177,46 @@ def show_best_teams_page(conn):
     if not seasons:
         st.info("Nessuna stagione disponibile")
         return
-    selected = st.multiselect("Stagioni", seasons, default=seasons)
+
+    selected_seasons = st.multiselect("Stagioni", seasons, default=seasons)
     threshold = st.number_input("Soglia % vittorie", min_value=0, max_value=100, value=65, step=1)
-    if st.button("Mostra", type="primary"):
-        seasons_str = "'" + "','".join(selected) + "'"
-        q = f"""
-            SELECT 
-                home_team as team,
-                div as league,
-                season,
-                COUNT(*) as played,
-                SUM(CASE WHEN fthg > ftag THEN 1 ELSE 0 END) as wins,
-                SUM(CASE WHEN fthg = ftag THEN 1 ELSE 0 END) as draws,
-                SUM(CASE WHEN fthg < ftag THEN 1 ELSE 0 END) as losses,
-                ROUND(CAST(SUM(CASE WHEN fthg > ftag THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) * 100, 1) as win_pct,
-                SUM(CASE WHEN fthg > ftag THEN 3 WHEN fthg = ftag THEN 1 ELSE 0 END) as points
-            FROM matches
-            WHERE season IN ({seasons_str})
-            GROUP BY home_team, div, season
-            HAVING win_pct >= {threshold}
-            ORDER BY win_pct DESC, points DESC
+
+    if st.button("Mostra", type="primary") and selected_seasons:
+        seasons_str = ",".join(f"'{s}'" for s in selected_seasons)
+        query = f"""
+        WITH all_matches AS (
+          SELECT home_team AS team, div AS league, season,
+                 CASE WHEN fthg > ftag THEN 1 ELSE 0 END AS win,
+                 CASE WHEN fthg = ftag THEN 1 ELSE 0 END AS draw,
+                 CASE WHEN fthg < ftag THEN 1 ELSE 0 END AS loss
+          FROM matches WHERE season IN ({seasons_str})
+          UNION ALL
+          SELECT away_team AS team, div AS league, season,
+                 CASE WHEN ftag > fthg THEN 1 ELSE 0 END AS win,
+                 CASE WHEN ftag = fthg THEN 1 ELSE 0 END AS draw,
+                 CASE WHEN ftag < fthg THEN 1 ELSE 0 END AS loss
+          FROM matches WHERE season IN ({seasons_str})
+        )
+        SELECT team, league, season,
+               COUNT(*) AS played,
+               SUM(win) AS wins,
+               SUM(draw) AS draws,
+               SUM(loss) AS losses,
+               ROUND(CAST(SUM(win) AS FLOAT)/COUNT(*)*100, 1) AS win_pct,
+               SUM(win)*3 + SUM(draw) AS points
+        FROM all_matches
+        GROUP BY team, league, season
+        HAVING win_pct >= {threshold}
+        ORDER BY win_pct DESC, points DESC, played DESC, team ASC
         """
-        df = pd.read_sql_query(q, conn)
-        if len(df) == 0:
+        df = pd.read_sql_query(query, conn)
+        if df.empty:
             st.info("Nessun risultato.")
             return
         df.insert(0, "Pos", range(1, len(df) + 1))
+        df = df[["Pos","team","league","season","played","wins","draws","losses","win_pct","points"]]
         df.columns = ["Pos","Squadra","Campionato","Stagione","P","V","N","P2","V%","Pts"]
         st.dataframe(df, use_container_width=True, hide_index=True)
-
 def show_standings_page(conn):
     st.header("Classifiche")
     cur = conn.cursor()
