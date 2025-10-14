@@ -16,20 +16,27 @@ def verifica_login() -> bool:
         st.session_state.autenticato = False
         st.session_state.tipo_utente = None
         st.session_state.nome_utente = None
+
     if st.session_state.autenticato:
         return True
+
     st.title("FOGNA - Statistiche Calcio")
-    tipo = st.radio("Tipo di accesso", ["Amministratore", "Utente"], horizontal=True)
-    tipo_key = "admin" if tipo == "Amministratore" else "utente"
-    pwd = st.text_input("Password", type="password")
-    if st.button("Accedi", type="primary"):
-        if pwd == CREDENZIALI[tipo_key]["password"]:
+
+    with st.form("login_form", clear_on_submit=True):
+        tipo = st.radio("Tipo di accesso", ["Amministratore", "Utente"], horizontal=True, key="tipo_accesso")
+        pwd = st.text_input("Password", type="password", key="pwd_input")
+        submitted = st.form_submit_button("Accedi")
+
+    if submitted:
+        tipo_key = "admin" if tipo == "Amministratore" else "utente"
+        if pwd.strip() == CREDENZIALI[tipo_key]["password"]:
             st.session_state.autenticato = True
             st.session_state.tipo_utente = tipo_key
             st.session_state.nome_utente = CREDENZIALI[tipo_key]["ruolo"]
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Password errata")
+
     return False
 
 @st.cache_resource
