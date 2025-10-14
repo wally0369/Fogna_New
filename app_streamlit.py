@@ -218,13 +218,14 @@ def show_best_teams_page(conn):
         df.columns = ["Pos","Squadra","Campionato","Stagione","P","V","N","P2","V%","Pts"]
         st.dataframe(
     df,
-    use_container_width=True,
     hide_index=True,
+    use_container_width=False,  # evita l’allargamento automatico
+    column_order=["Pos","Squadra","Campionato","Stagione","P","V","N","P2","V%","Pts"],
     column_config={
         "Pts": st.column_config.NumberColumn("Pts", width="small"),
-        "V%": st.column_config.NumberColumn("V%", format="%.1f", width="small"),
-        "P":  st.column_config.NumberColumn("P",  width="small"),
-        "P2": st.column_config.NumberColumn("P2", width="small"),
+        "V%":  st.column_config.NumberColumn("V%",  format="%.1f", width="small"),
+        "P":   st.column_config.NumberColumn("P",   width="small"),
+        "P2":  st.column_config.NumberColumn("P2",  width="small"),
     },
 )
 def show_standings_page(conn):
