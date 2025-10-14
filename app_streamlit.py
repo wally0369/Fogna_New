@@ -7,8 +7,8 @@ import re
 st.set_page_config(page_title="FOGNA - Statistiche Calcio", layout="wide")
 
 CREDENZIALI = {
-    "admin": {"password": "fogna", "ruolo": "Amministratore"},
-    "utente": {"password": "vinceremo", "ruolo": "Utente"},
+    "admin": {"password": st.secrets["passwords"]["admin"], "ruolo": "Amministratore"},
+"utente": {"password": st.secrets["passwords"]["utente"], "ruolo": "Utente"},
 }
 
 def verifica_login() -> bool:
