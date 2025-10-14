@@ -216,7 +216,17 @@ def show_best_teams_page(conn):
         df.insert(0, "Pos", range(1, len(df) + 1))
         df = df[["Pos","team","league","season","played","wins","draws","losses","win_pct","points"]]
         df.columns = ["Pos","Squadra","Campionato","Stagione","P","V","N","P2","V%","Pts"]
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(
+    df,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "Pts": st.column_config.NumberColumn("Pts", width="small"),
+        "V%": st.column_config.NumberColumn("V%", format="%.1f", width="small"),
+        "P":  st.column_config.NumberColumn("P",  width="small"),
+        "P2": st.column_config.NumberColumn("P2", width="small"),
+    },
+)
 def show_standings_page(conn):
     st.header("Classifiche")
     cur = conn.cursor()
