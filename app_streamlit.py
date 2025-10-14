@@ -214,55 +214,37 @@ def show_standings_page(conn):
     if not leagues:
         st.info("Nessun campionato disponibile")
         return
-
-    selected_league = st.selectbox("Campionato", leagues)
-    cur.execute("SELECT DISTINCT season FROM matches WHERE div = ? ORDER BY season DESC", (selected_league,))
-    seasons = [s[0] for s in cur.fetchall()]
-    if not seasons:
+    league = st.selectbox("Campionato", leagues)
+    cur.execute("SELECT DISTINCT season FROM matches WHERE div = ? ORDER BY season DESC", (league,))
+    ss = [s[0] for s in cur.fetchall()]
+    if not ss:
         st.info("Nessuna stagione per questo campionato")
         return
-
-    selected_season = st.selectbox("Stagione", seasons)
-
+    season = st.selectbox("Stagione", ss)
     if st.button("Mostra Classifica", type="primary"):
-        query = """
-        WITH all_matches AS (
-          -- prospettiva squadra in casa
-          SELECT home_team AS team, div, season,
-                 CASE WHEN fthg > ftag THEN 1 ELSE 0 END AS win,
-                 CASE WHEN fthg = ftag THEN 1 ELSE 0 END AS draw,
-                 CASE WHEN fthg < ftag THEN 1 ELSE 0 END AS loss,
-                 fthg AS gf, ftag AS ga
-          FROM matches WHERE div = ? AND season = ?
-          UNION ALL
-          -- prospettiva squadra in trasferta
-          SELECT away_team AS team, div, season,
-                 CASE WHEN ftag > fthg THEN 1 ELSE 0 END AS win,
-                 CASE WHEN ftag = fthg THEN 1 ELSE 0 END AS draw,
-                 CASE WHEN ftag < fthg THEN 1 ELSE 0 END AS loss,
-                 ftag AS gf, fthg AS ga
-          FROM matches WHERE div = ? AND season = ?
-        )
-        SELECT team,
-               COUNT(*) AS played,
-               SUM(win) AS wins,
-               SUM(draw) AS draws,
-               SUM(loss) AS losses,
-               SUM(gf) AS gf,
-               SUM(ga) AS ga,
-               SUM(gf) - SUM(ga) AS gd,
-               SUM(win)*3 + SUM(draw) AS points
-        FROM all_matches
-        GROUP BY team
-        ORDER BY points DESC, gd DESC, gf DESC, team ASC
+        q = """
+            SELECT 
+                home_team as team,
+                COUNT(*) as played,
+                SUM(CASE WHEN fthg > ftag THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN fthg = ftag THEN 1 ELSE 0 END) as draws,
+                SUM(CASE WHEN fthg < ftag THEN 1 ELSE 0 END) as losses,
+                SUM(fthg) as gf,
+                SUM(ftag) as ga,
+                SUM(fthg) - SUM(ftag) as gd,
+                SUM(CASE WHEN fthg > ftag THEN 3 WHEN fthg = ftag THEN 1 ELSE 0 END) as points
+            FROM matches
+            WHERE div = ? AND season = ?
+            GROUP BY home_team
+            ORDER BY points DESC, gd DESC
         """
-        df = pd.read_sql_query(query, conn, params=(selected_league, selected_season, selected_league, selected_season))
-        if df.empty:
+        df = pd.read_sql_query(q, conn, params=(league, season))
+        if len(df) == 0:
             st.info("Nessun dato.")
             return
         df.insert(0, "Pos", range(1, len(df) + 1))
         df.columns = ["Pos","Squadra","P","V","N","P2","GF","GS","DR","Pts"]
-        st.dataframe(df, use_container_width=True, hide_index=True)ontainer_width=True, hide_index=True)
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
 def show_data_management_page(conn):
     if st.session_state.tipo_utente != "admin":
