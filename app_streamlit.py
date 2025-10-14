@@ -281,16 +281,11 @@ def show_standings_page(conn):
             st.info("Nessun dato.")
             return
         df.insert(0, "Pos", range(1, len(df) + 1))
-        df = df[["Pos","Squadra","P","V","N","P2","GF","GS","DR","Pts"]]
-st.table(
-    df.style.set_properties(
-        subset=["P","V","N","P2","GF","GS","DR","Pts"],
-        **{"text-align": "center", "width": "70px"}
-    ).set_properties(
-        subset=["Squadra"],
-        **{"width": "220px"}
-    )
+        df.columns = ["Pos","Squadra","P","V","N","P2","GF","GS","DR","Pts"]
+        st.table(
+    df.style.set_properties(subset=["Pts"], **{"width": "60px"})
 )
+
 def show_data_management_page(conn):
     if st.session_state.tipo_utente != "admin":
         st.error("Accesso negato (solo amministratori).")
