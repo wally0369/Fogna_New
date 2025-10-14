@@ -8,7 +8,7 @@ st.set_page_config(page_title="FOGNA - Statistiche Calcio", layout="wide")
 
 CREDENZIALI = {
     "admin": {"password": st.secrets["passwords"]["admin"], "ruolo": "Amministratore"},
-"utente": {"password": st.secrets["passwords"]["utente"], "ruolo": "Utente"},
+    "utente": {"password": st.secrets["passwords"]["utente"], "ruolo": "Utente"},
 }
 
 def verifica_login() -> bool:
@@ -170,18 +170,51 @@ def show_upload_page(conn):
                 st.error(f"Errore: {e}")
 
 def show_best_teams_page(conn):
-    st.header("BEST Teams")
+    st.header("🏆 BEST Teams")
+    
+    # Ottieni stagioni
     cur = conn.cursor()
     cur.execute("SELECT DISTINCT season FROM matches WHERE season IS NOT NULL ORDER BY season DESC")
     seasons = [s[0] for s in cur.fetchall()]
+    
     if not seasons:
-        st.info("Nessuna stagione disponibile")
+        st.info("⚠️ Nessuna stagione disponibile")
         return
-
-    selected_seasons = st.multiselect("Stagioni", seasons, default=seasons)
-    threshold = st.number_input("Soglia % vittorie", min_value=0, max_value=100, value=65, step=1)
-
-    if st.button("Mostra", type="primary") and selected_seasons:
+    
+    # Layout orizzontale: 3 colonne affiancate
+    col1, col2, col3 = st.columns([3, 1, 1.5])
+    
+    with col1:
+        # Solo l'ultima stagione selezionata di default
+        selected_seasons = st.multiselect(
+            "📅 Seleziona Stagioni:",
+            seasons,
+            default=[seasons[0]],  # SOLO l'ultima
+            help="Seleziona una o più stagioni da analizzare"
+        )
+    
+    with col2:
+        threshold = st.number_input(
+            "🎯 Soglia %:",
+            min_value=0,
+            max_value=100,
+            value=65,
+            step=1,
+            help="Percentuale minima di vittorie"
+        )
+    
+    with col3:
+        st.write("")  # Spazio per allineare verticalmente
+        mostra = st.button("🏆 MOSTRA BEST TEAMS", type="primary", use_container_width=True)
+    
+    # Indicatore chiaro delle stagioni selezionate
+    if selected_seasons:
+        st.info(f"📊 Analizzando **{len(selected_seasons)}** stagione/i: {', '.join(selected_seasons)}")
+    else:
+        st.warning("⚠️ Seleziona almeno una stagione!")
+    
+    # Mostra risultati
+    if mostra and selected_seasons:
         seasons_str = ",".join(f"'{s}'" for s in selected_seasons)
         query = f"""
         WITH all_matches AS (
@@ -210,24 +243,30 @@ def show_best_teams_page(conn):
         ORDER BY win_pct DESC, points DESC, played DESC, team ASC
         """
         df = pd.read_sql_query(query, conn)
+        
         if df.empty:
-            st.info("Nessun risultato.")
+            st.warning(f"Nessuna squadra con percentuale >= {threshold}%")
             return
+        
+        st.success(f"🎯 Trovate {len(df)} squadre con percentuale >= {threshold}%")
+        
         df.insert(0, "Pos", range(1, len(df) + 1))
         df = df[["Pos","team","league","season","played","wins","draws","losses","win_pct","points"]]
         df.columns = ["Pos","Squadra","Campionato","Stagione","P","V","N","P2","V%","Pts"]
+        
         st.dataframe(
-    df,
-    hide_index=True,
-    use_container_width=False,  # evita l’allargamento automatico
-    column_order=["Pos","Squadra","Campionato","Stagione","P","V","N","P2","V%","Pts"],
-    column_config={
-        "Pts": st.column_config.NumberColumn("Pts", width="small"),
-        "V%":  st.column_config.NumberColumn("V%",  format="%.1f", width="small"),
-        "P":   st.column_config.NumberColumn("P",   width="small"),
-        "P2":  st.column_config.NumberColumn("P2",  width="small"),
-    },
-)
+            df,
+            hide_index=True,
+            use_container_width=False,
+            column_order=["Pos","Squadra","Campionato","Stagione","P","V","N","P2","V%","Pts"],
+            column_config={
+                "Pts": st.column_config.NumberColumn("Pts", width="small"),
+                "V%":  st.column_config.NumberColumn("V%",  format="%.1f", width="small"),
+                "P":   st.column_config.NumberColumn("P",   width="small"),
+                "P2":  st.column_config.NumberColumn("P2",  width="small"),
+            },
+        )
+
 def show_standings_page(conn):
     st.header("Classifiche")
     cur = conn.cursor()
@@ -283,7 +322,7 @@ def show_standings_page(conn):
         df.insert(0, "Pos", range(1, len(df) + 1))
         df.columns = ["Pos","Squadra","P","V","N","P2","GF","GS","DR","Pts"]
         st.dataframe(df, use_container_width=True, hide_index=True)
-
+                    
 def show_data_management_page(conn):
     if st.session_state.tipo_utente != "admin":
         st.error("Accesso negato (solo amministratori).")
@@ -302,9 +341,7 @@ def show_data_management_page(conn):
         data = cur.fetchall()
         if data:
             df = pd.DataFrame(data, columns=["Stagione","Partite"])
-            st.table(
-    df.style.set_properties(subset=["Pts"], **{"width": "60px"})
-)
+            st.dataframe(df, use_container_width=True, hide_index=True)
         else:
             st.info("Nessun file caricato.")
     with tab2:
@@ -324,7 +361,7 @@ def show_data_management_page(conn):
                 cur.execute("DELETE FROM matches WHERE season = ?", (season,))
                 conn.commit()
                 st.success(f"Eliminata stagione {season}")
-                st.experimental_rerun()
+                st.rerun()
 
 if not verifica_login():
     st.stop()
@@ -332,6 +369,12 @@ if not verifica_login():
 conn = init_database()
 
 st.sidebar.markdown(f"Utente: {st.session_state.nome_utente}")
+if st.sidebar.button("🚪 Logout"):
+    st.session_state.autenticato = False
+    st.session_state.tipo_utente = None
+    st.session_state.nome_utente = None
+    st.rerun()
+
 pages = ["Home", "Carica File", "BEST Teams", "Classifiche"]
 if st.session_state.tipo_utente == "admin":
     pages.append("Gestione Dati")
