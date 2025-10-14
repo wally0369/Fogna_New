@@ -282,9 +282,7 @@ def show_standings_page(conn):
             return
         df.insert(0, "Pos", range(1, len(df) + 1))
         df.columns = ["Pos","Squadra","P","V","N","P2","GF","GS","DR","Pts"]
-        st.table(
-    df.style.set_properties(subset=["Pts"], **{"width": "60px"})
-)
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
 def show_data_management_page(conn):
     if st.session_state.tipo_utente != "admin":
