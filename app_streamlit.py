@@ -26,19 +26,27 @@ os.environ["PYARROW_IGNORE_TIMEZONE"] = "1"
 # CONFIGURAZIONE CREDENZIALI - FUNZIONA LOCALE + WEB
 # Rileva automaticamente se sei in locale o online
 
-# Verifica se è ONLINE guardando se esiste secrets E l'hostname
-try:
-    # Se riesce a leggere secrets, è ONLINE
-    ADMIN_PASSWORD = st.secrets["passwords"]["admin"]
-    UTENTE_PASSWORD = st.secrets["passwords"]["utente"]
-    MODE = "🌐 ONLINE"
-    IS_LOCAL = False
-except:
-    # Se fallisce, è LOCALE
+# Verifica se è LOCALE guardando l'ambiente
+IS_LOCAL = os.getenv("STREAMLIT_SERVER_ADDRESS", "localhost") == "localhost" or \
+           not hasattr(st, "secrets") or \
+           "streamlit.app" not in str(os.getenv("STREAMLIT_BROWSER_SERVER_ADDRESS", ""))
+
+if IS_LOCAL:
+    # Password LOCALI per testare sul PC
     ADMIN_PASSWORD = "fogna"
     UTENTE_PASSWORD = "vinceremo"
     MODE = "🏠 LOCALE"
-    IS_LOCAL = True
+else:
+    # Password da secrets (online)
+    try:
+        ADMIN_PASSWORD = st.secrets["passwords"]["admin"]
+        UTENTE_PASSWORD = st.secrets["passwords"]["utente"]
+        MODE = "🌐 ONLINE"
+    except:
+        # Fallback
+        ADMIN_PASSWORD = "fogna"
+        UTENTE_PASSWORD = "vinceremo"
+        MODE = "🏠 LOCALE"
 
 CREDENZIALI = {
     "admin": {
