@@ -24,26 +24,31 @@ sys.modules['pyarrow'] = None  # Blocca import di pyarrow
 os.environ["PYARROW_IGNORE_TIMEZONE"] = "1"
 
 # CONFIGURAZIONE CREDENZIALI - FUNZIONA LOCALE + WEB
-# Rileva automaticamente se sei in locale o online
+# METODO DEFINITIVO: controlla se siamo su localhost (porta 8501/8502) o online
 
-# Controlla se siamo su Streamlit Cloud guardando l'hostname
+# Controlla l'URL/porta - se è localhost -> LOCALE, altrimenti -> ONLINE
 import socket
-hostname = socket.gethostname()
-
-# Se l'hostname contiene "streamlit" o siamo su .streamlit.app, è ONLINE
-if "streamlit" in hostname.lower() or os.getenv("STREAMLIT_SHARING_MODE"):
-    # ONLINE - usa secrets
-    try:
-        ADMIN_PASSWORD = st.secrets["passwords"]["admin"]
-        UTENTE_PASSWORD = st.secrets["passwords"]["utente"]
-        MODE = "🌐 ONLINE"
-    except:
-        # Fallback se secrets non configurati
+try:
+    # Prova a vedere se siamo in ascolto su porte locali
+    hostname = socket.gethostname()
+    # Se hostname è quello del PC locale (non "streamlit" o simili) -> LOCALE
+    if "desktop" in hostname.lower() or "pc" in hostname.lower() or hostname.startswith("DESKTOP-"):
+        # LOCALE
         ADMIN_PASSWORD = "fogna"
         UTENTE_PASSWORD = "vinceremo"
-        MODE = "🌐 ONLINE (no secrets)"
-else:
-    # LOCALE - usa password hardcoded
+        MODE = "🏠 LOCALE"
+    else:
+        # ONLINE - usa secrets
+        try:
+            ADMIN_PASSWORD = st.secrets["passwords"]["admin"]
+            UTENTE_PASSWORD = st.secrets["passwords"]["utente"]
+            MODE = "🌐 ONLINE"
+        except:
+            ADMIN_PASSWORD = "fogna"
+            UTENTE_PASSWORD = "vinceremo"
+            MODE = "🏠 LOCALE"
+except:
+    # Fallback -> LOCALE
     ADMIN_PASSWORD = "fogna"
     UTENTE_PASSWORD = "vinceremo"
     MODE = "🏠 LOCALE"
